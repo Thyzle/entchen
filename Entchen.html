@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🦆 Entchens Lern-App v2.3.1 ❤️</title>
+<style>
+:root{
+  --bg:#fff5fb;--card:#fff;--text:#1f2937;
+  --accent:#db2777;--muted:#6b7280;
+  --ok:#22c55e;--err:#ef4444;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;font-family:Inter,system-ui,Arial,sans-serif;
+  background:var(--bg);color:var(--text);
+}
+.container{max-width:980px;margin:18px auto;padding:14px;}
+header{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:10px;flex-wrap:wrap;
+}
+h1{margin:0;font-size:20px;color:var(--accent);}
+.btn{
+  padding:10px 14px;border:1px solid #f9a8d4;border-radius:10px;
+  background:#fff;cursor:pointer;transition:.2s;
+}
+.btn.primary{background:var(--accent);color:#fff;border-color:transparent;}
+.btn:disabled{opacity:.6;cursor:not-allowed;}
+.btn.ghost{background:#fff0fb;border-color:#ffd6ef;}
+.card{
+  background:var(--card);border:1px solid #ffd6ef;border-radius:14px;
+  box-shadow:0 8px 24px rgba(0,0,0,.06);padding:16px;margin-top:12px;
+}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+select{
+  padding:8px;border-radius:8px;border:1px solid #f9a8d4;background:#fff;
+}
+.topic{color:#c026d3;font-weight:700;}
+.question{font-size:18px;margin:8px 0 12px;}
+.opt{
+  display:block;width:100%;text-align:left;margin:6px 0;
+  padding:10px;border:1px solid #f9a8d4;border-radius:10px;
+  background:#fff;cursor:pointer;
+}
+.opt:hover{background:#fff1f7;}
+.correct{background:#dcfce7;border-color:#16a34a;}
+.wrong{background:#fee2e2;border-color:#ef4444;}
+.hidden{display:none;}
+.meta{display:flex;justify-content:space-between;color:var(--muted);font-size:14px;margin-top:8px;}
+hr{border:none;border-top:1px dashed #ffd6ef;margin:10px 0;}
+.note{font-size:13px;color:#6b7280;}
+.kpi{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;}
+.kpi .chip{
+  background:#fff;border:1px solid #ffd6ef;border-radius:999px;
+  padding:6px 10px;font-size:12px;color:#86198f;
+}
+.inputRow{display:flex;gap:8px;align-items:center;margin:8px 0;}
+.inputRow input{padding:8px;border-radius:8px;border:1px solid #f1a6d6;width:160px;}
+footer.note{text-align:center;margin-top:16px;}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🦆 Entchens Lern-App v2.3.1 ❤️</h1>
+    <div class="row">
+      <button id="btnPrint" class="btn">Als PDF drucken</button>
+      <button id="btnHomeTop" class="btn ghost">🏠 Zurück zum Start</button>
+    </div>
+  </header>
+
+  <!-- Startseite -->
+  <section class="card" id="home">
+    <p><strong>🦆 Hi Entchen 💕 – schön, dass du wieder da bist!</strong></p>
+    <div class="kpi" id="statsRow">
+      <span class="chip" id="statLast">Noch keine Prüfung gespeichert</span>
+      <span class="chip" id="statAvg"></span>
+      <span class="chip" id="statErr"></span>
+    </div>
+    <hr>
+    <div class="row">
+      <label for="topicSel"><strong>Thema wählen:</strong></label>
+      <select id="topicSel"></select>
+      <span class="note">Tipp: Für die Prüfung „Alle Themen“ wählen.</span>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <button id="btnLearn" class="btn primary">Lernen</button>
+      <button id="btnExam" class="btn">Prüfung (30 / 60 min)</button>
+      <button id="btnErrTrain" class="btn ghost" disabled>Letztes Fehler-Training starten</button>
+    </div>
+  </section>
+
+  <!-- Quiz -->
+  <section class="card hidden" id="quizCard">
+    <div class="topic" id="qTopic"></div>
+    <div class="question" id="qText"></div>
+    <div id="qOptions"></div>
+    <div id="qNum" class="hidden"></div>
+    <div id="qExplain" class="hidden"></div>
+    <div class="meta">
+      <span id="progress"></span>
+      <span id="timer" class="hidden"></span>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <button id="btnBack" class="btn">Zurück</button>
+      <button id="btnNext" class="btn" disabled>Weiter</button>
+      <button id="btnExplain" class="btn" disabled>Erklärung</button>
+      <button id="btnDownload" class="btn hidden">Ergebnis herunterladen (JSON)</button>
+    </div>
+  </section>
+
+  <!-- Ergebnis -->
+  <section class="card hidden" id="resultCard">
+    <h3 id="resultHead"></h3>
+    <p id="resultText"></p>
+    <div class="row">
+      <button id="btnErrNow" class="btn ghost hidden">Fehler-Training jetzt starten 🔁</button>
+      <button id="btnHome" class="btn">Zurück zum Start</button>
+    </div>
+  </section>
+
+  <footer class="note">
+    Offline – Inhalte orientieren sich am Prüfungsbereich Wirtschafts- & Sozialkunde (60 Minuten).
+  </footer>
+</div>
+
+<!-- === Teil 2: JavaScript wird hier eingefügt === -->
+<script>
+/* ========= KONFIGURATION: Themen, Verteilung, Seeds ========= */
+const TOPICS = [
+  "Sozialversicherung",
+  "Lohn & Steuern",
+  "Ausbildungs- & Arbeitsrecht",
+  "Wirtschaftsgrundlagen & Betrieb",
+  "Arbeitsschutz & Hygiene",
+  "Datenschutz & Kommunikation",
+  "Umwelt & Entsorgung"
+];
+
+/* Realistische Zielverteilung ≈ 220 Fragen */
+const DISTRIB = {
+  "Sozialversicherung": 55,
+  "Lohn & Steuern": 55,
+  "Ausbildungs- & Arbeitsrecht": 45,
+  "Wirtschaftsgrundlagen & Betrieb": 33,
+  "Arbeitsschutz & Hygiene": 18,
+  "Datenschutz & Kommunikation": 15, // vorher 10
+  "Umwelt & Entsorgung": 10           // vorher 4
+};
+
+
+/* Rechenaufgaben (fix) – werden zusätzlich aufgenommen */
+const NUMERIC_TASKS = [
+  ["Lohn & Steuern","Nettolohn (Grobabschätzung): Brutto 2 800 €, Abzüge gesamt 33 %. Wie hoch ist der Nettolohn?", 2800*(1-0.33), 2.0, "€", "Netto ≈ Brutto × (1 − Abzüge) → 2 800 × 0,67 = 1 876,00 €."],
+  ["Lohn & Steuern","Lohnfortzahlung: Monatsbrutto 2 400 €, krankheitsbedingter Ausfall 10 Kalendertage. Lohnfortzahlung in €?", 2400/30*10, 2.0, "€", "Tageslohn = 2 400 / 30 = 80 €. 10 Tage → 800,00 €."],
+  ["Lohn & Steuern","Arbeitgeber-Gesamtkosten: Brutto 3 000 €, AG-SV-Anteil 20 %. Gesamtkosten?", 3000*1.20+3000*0, 2.0, "€", "Gesamtkosten = Brutto + (Brutto × AG-Anteil) → 3 000 + 600 = 3 600,00 €."],
+  ["Wirtschaftsgrundlagen & Betrieb","Einkauf: Listenpreis 500 €, 10 % Rabatt, 3 % Skonto bei Barzahlung. Zahlbetrag?", 500*0.9*0.97, 1.0, "€", "Endpreis = 500 × 0,90 × 0,97 = 436,50 €."],
+  ["Wirtschaftsgrundlagen & Betrieb","Umsatzsteuer: Netto 50 €, USt 19 %. Brutto?", 50*1.19, 1.0, "€", "Brutto = Netto × 1,19 = 59,50 €."]
+];
+
+/* SEEDS: Offizieller Prüfungsstil, 4 Optionen, praxisnaher Kontext.
+   Jede Frage: [Fragetext, Richtige, [Falsch1, Falsch2, Falsch3], Erklärung] */
+const SEEDS = {
+  "Sozialversicherung": [
+    ["Welche Versicherungszweige umfasst die gesetzliche Sozialversicherung?", "Kranken-, Pflege-, Renten-, Arbeitslosen- und Unfallversicherung", ["Nur Kranken- und Rentenversicherung", "Nur Unfallversicherung", "Nur Pflege- und Krankenversicherung"], "Die fünf Zweige bilden die gesetzliche Sozialversicherung."],
+    ["Wer trägt die Beiträge zur gesetzlichen Unfallversicherung?", "Arbeitgeber", ["Arbeitnehmer", "Arbeitgeber und Arbeitnehmer je zur Hälfte", "Der Staat"], "Die UV wird allein durch die Unternehmen finanziert (Berufsgenossenschaften)."],
+    ["Welche Aufgabe hat die Arbeitslosenversicherung (SGB III)?", "Leistungen bei Arbeitslosigkeit und Vermittlung", ["Nur Rentenberechnung", "Nur Krankenbehandlung", "Bauaufsicht"], "Absicherung bei Arbeitslosigkeit, Förderung der Beschäftigung."],
+    ["Wer erhebt die Beiträge zur gesetzlichen Krankenversicherung (GKV)?", "Die Krankenkassen", ["Das Finanzamt", "Die Berufsgenossenschaft", "Der Zoll"], "Die Krankenkassen verwalten und erheben die Beiträge."],
+    ["Wie werden GKV-Beiträge im Regelfall finanziert?", "Paritätisch durch Arbeitgeber und Arbeitnehmer", ["Nur Arbeitnehmer", "Nur Arbeitgeber", "Nur die Krankenkassen"], "Grundsatz der Parität; Ausnahmen: Zusatzbeitrag GKV, UV."],
+    ["Welche Leistung ist NICHT Aufgabe der Rentenversicherung?", "Kurzfristige Lohnersatzleistung bei Krankheit", ["Altersrente", "Reha-Leistungen", "Erwerbsminderungsrente"], "Lohnfortzahlung/Krankengeld gehören nicht zur Rentenversicherung."],
+    ["Wer ist Träger der gesetzlichen Unfallversicherung?", "Berufsgenossenschaften", ["Krankenkassen", "Rentenversicherungsträger", "Agentur für Arbeit"], "BG sind Träger der UV."],
+    ["Was ist der Zweck der Pflegeversicherung?", "Absicherung des Pflegerisikos", ["Absicherung gegen Arbeitsunfälle", "Arbeitslosigkeit", "Altersarmut"], "Pflegebedürftigkeit finanziell absichern."],
+    ["Was beschreibt der Begriff Beitragsbemessungsgrenze?", "Einkommensgrenze, bis zu der Beiträge erhoben werden", ["Mindestlohn", "Grundfreibetrag Lohnsteuer", "Pfändungsfreigrenze"], "BBG begrenzt die beitragspflichtige Entgeltbasis."],
+    ["Wer meldet einen meldepflichtigen Arbeitsunfall?", "Der Arbeitgeber an die BG", ["Der/die Beschäftigte an die GKV", "Das Finanzamt", "Niemand"], "Meldepflicht des Arbeitgebers gegenüber der BG."],
+    ["Wie erfolgt die Versicherung in der GKV grundsätzlich?", "Pflichtversicherung bei Überschreiten der Minijobgrenze", ["Immer privat", "Nur freiwillig", "Nur durch Tarifvertrag"], "Arbeitnehmer sind regelmäßig pflichtversichert (Ausnahmen möglich)."],
+    ["Was ist die elektronische Gesundheitskarte (eGK)?", "Versichertennachweis in der GKV", ["Steuer-ID", "Rentenbescheid", "BG-Ausweis"], "Nachweis der Versicherungszugehörigkeit in der GKV."],
+    ["Welche Aussage zur Familienversicherung in der GKV ist korrekt?", "Mitversicherte Angehörige zahlen keinen eigenen Beitrag", ["Immer eigene Beiträge", "Nur in der UV möglich", "Nur bei Vollzeitbeschäftigung"], "Familienversicherung ermöglicht beitragsfreie Mitversicherung."],
+    ["Was ist ein Zusatzbeitrag in der GKV?", "Kassenindividueller Aufschlag auf den Beitragssatz", ["Steuerzuschlag", "BG-Umlage", "Pflichtbeitrag der UV"], "Zusatzbeitrag variiert je Krankenkasse."],
+    ["Was trifft auf die gesetzliche Rentenversicherung zu?", "Umlageverfahren", ["Kapitaldeckungsverfahren", "Nur steuerfinanziert", "Nur privat"], "Aktive finanzieren die Leistungen der Rentner (Umlage)."]
+  ],
+  "Lohn & Steuern": [
+    ["Was ist der Bruttolohn?", "Lohn vor Abzug von Steuern und Sozialabgaben", ["Auszahlungsbetrag", "Nur Sachbezüge", "Netto ohne LSt"], "Brutto = vor Abzügen, Netto = nach Abzügen."],
+    ["Welche Steuer führt der Arbeitgeber monatlich ab?", "Lohnsteuer", ["Mehrwertsteuer", "Grundsteuer", "Kfz-Steuer"], "Einbehalt und Abführung der Lohnsteuer ans Finanzamt."],
+    ["Was gehört NICHT zu typischen Abzügen auf der Lohnabrechnung?", "Private Einkäufe", ["Rentenversicherung", "Krankenversicherung", "Pflegeversicherung"], "Private Ausgaben stehen nicht auf der Lohnabrechnung."],
+    ["Wofür steht die Steuerklasse?", "Einteilung für den Lohnsteuerabzug", ["Krankenkassenwahl", "Rentenstufe", "Pflegestufe"], "Beeinflusst Höhe des Lohnsteuerabzugs."],
+    ["Was trifft auf den Nettolohn zu?", "Betrag nach Abzug von Steuern und Sozialabgaben", ["Betrag vor allen Abzügen", "Nur Bruttolohn", "Nur Zuschläge"], "Auszahlungsbetrag = Netto."],
+    ["Wie werden Einmalzahlungen (z. B. Weihnachtsgeld) häufig behandelt?", "Erhöhter LSt-Abzug nach Jahrestabelle möglich", ["Nie steuerpflichtig", "Nur SV-pflichtig", "Immer steuerfrei"], "Einmalbezüge haben oft besondere LSt-Berechnung."],
+    ["Welche Aussage zur SV-Beitragslast ist korrekt?", "Grundsätzlich paritätisch (AG/AN), mit Ausnahmen", ["Nur AN zahlen", "Nur AG zahlt alles", "Nur Staat zahlt"], "Parität mit Ausnahmen (Zusatzbeitrag GKV, UV nur AG)."],
+    ["Was ist der Solidaritätszuschlag bezogen auf LSt?", "Ergänzungsabgabe zur Einkommensteuer", ["Beitrag zur GKV", "Pflicht zu BG", "Kirchensteuer"], "Ggf. fällig abhängig von LSt-Höhe (Freigrenzen)."],
+    ["Welche Aussage zu Minijobs ist korrekt?", "Bis 520 € mtl. (typisch), besondere Abgabenregelung", ["Immer SV-pflichtig voll", "Nie steuerpflichtig", "Immer wie Vollzeit behandelt"], "Geringfügige Beschäftigung mit Sonderregeln."],
+    ["Wer erhält Entgeltfortzahlung im Krankheitsfall (grundsätzlich 6 Wochen)?", "Arbeitnehmer*innen nach EFZG", ["Nur Selbstständige", "Nur Azubis", "Niemand"], "Entgeltfortzahlungsgesetz."],
+    ["Welcher Zuschlag ist regelmäßig steuer- und SV-pflichtig?", "Schicht-/Funktionszulagen (i. d. R.)", ["Nachtzuschlag i. d. R. steuerfrei (Grenzen)", "Sonntagszuschlag immer steuerfrei", "Alle Zuschläge steuerfrei"], "Steuerfreiheit bestimmter Zuschläge nur unter Bedingungen."],
+    ["Welches Dokument ist Grundlage für den LSt-Abzug?", "Elektronische Lohnsteuerabzugsmerkmale (ELStAM)", ["eGK", "Sozialversicherungsausweis", "Meldebescheinigung UV"], "ELStAM enthält Klasse, Kinderfreibeträge etc."],
+    ["Welche Abgabe ist keine Sozialversicherung?", "Kirchensteuer", ["Arbeitslosenversicherung", "Pflegeversicherung", "Rentenversicherung"], "Kirchensteuer ist Steuer, keine SV-Abgabe."],
+    ["Was ist der Zweck einer Lohnsteuerbescheinigung?", "Jährlicher Nachweis der Lohn-/Abgabenwerte", ["Ersatz für ELStAM", "Anmeldung zur GKV", "Antrag auf BG-Leistungen"], "Bestandteil der Jahresmeldungen."],
+    ["Wie wirkt sich Steuerklasse III (verheiratet) typischerweise aus?", "Geringerer monatlicher LSt-Abzug", ["Immer höherer LSt-Abzug", "Unverändert", "Nur für Singles"], "Lohnsteuerverteilung im Ehegattensplitting."]
+  ],
+  "Ausbildungs- & Arbeitsrecht": [
+    ["Wer schließt den Ausbildungsvertrag ab?", "Ausbildender und Auszubildende*r", ["Die Berufsschule", "Die Kammer allein", "Die Agentur für Arbeit"], "Vertragspartner sind Ausbildender und Azubi; Kammer registriert."],
+    ["Maximale Probezeit nach BBiG?", "4 Monate", ["1 Monat", "6 Monate", "12 Monate"], "§ 20 BBiG."],
+    ["Mindesturlaub bei 5-Tage-Woche (BUrlG)?", "20 Arbeitstage", ["15", "24", "30"], "24 Werktage bei 6-Tage-Woche ≙ 20 AT bei 5-Tage-Woche."],
+    ["Kündigungsfrist AN (BGB-Standard, ohne Abweichung)?", "Vier Wochen zum 15. oder Monatsende", ["Eine Woche", "Zwei Monate", "Immer 3 Monate"], "§ 622 BGB, Grundregel."],
+    ["Pflichten des Auszubildenden laut BBiG?", "Lernpflicht, Sorgfalt, Weisungsgebundenheit, Berichtsheft", ["Nur Anwesenheit", "Nur Prüfungen ablegen", "Nur Überstunden"], "BBiG § 13 ff."],
+    ["Pflichten des Ausbildenden laut BBiG?", "Ausbildungsmittel, Ausbildungsplan, Freistellung Berufsschule", ["Nur Lohn zahlen", "Keine Pflichten", "Nur Prüfungsanmeldung"], "BBiG § 14."],
+    ["Was regelt ein Tarifvertrag?", "Arbeitsentgelte, Arbeitszeit, Bedingungen", ["Nur Urlaubsliste", "Nur Hygienepläne", "Nur Organigramm"], "Zwischen Gewerkschaft und Arbeitgeberverband/Arbeitgeber."],
+    ["Abmahnung – Zweck?", "Hinweis auf Pflichtverletzung, Warnfunktion", ["Kündigung ist immer sofort", "Nur formlose Notiz", "Nur Lohnabzug"], "Vorstufe zur verhaltensbedingten Kündigung."],
+    ["Arbeitszeit gem. ArbZG (Regel)?", "8 h/Tag, verlängerbar auf 10 h mit Ausgleich", ["Immer 10 h ohne Ausgleich", "6 h/Tag max.", "Keine Begrenzung"], "§ 3 ArbZG."],
+    ["Mutterschutz – Kerninhalt?", "Beschäftigungsverbote/Schutzfristen und Kündigungsschutz", ["Nur Lohnkürzung", "Nur Steuerfreiheit", "Nur Urlaub"], "MuSchG."],
+    ["Wer trägt Verantwortung für den Ausbildungsnachweis (Berichtsheft)?", "Der/die Auszubildende (Führung), Betrieb prüft/freistellt", ["Nur Berufsschule", "Nur Kammer", "Niemand"], "Pflicht des Azubi, Betrieb unterstützt."],
+    ["Wann ist eine fristlose Kündigung gerechtfertigt?", "Bei wichtigem Grund (Unzumutbarkeit)", ["Beliebig", "Immer nach 4 Monaten", "Nie"], "§ 626 BGB."],
+    ["Darf der Urlaub während der Berufsschulzeit gestrichen werden?", "Urlaub ist grundsätzlich zu gewähren, Berufsschultage sind zu berücksichtigen", ["Immer streichen", "Nie gewähren", "Nur sonntags"], "Urlaub und Berufsschule sind abzustimmen."],
+    ["Beteiligte Interessenvertretung im Betrieb?", "Betriebsrat (wo vorhanden)", ["Agentur für Arbeit", "Krankenkasse", "BG"], "Mitbestimmung nach BetrVG."],
+    ["Ziel der Ausbildungsordnung (AO)?", "Regelt Inhalte, Dauer, Prüfungen", ["Nur Urlaubsplanung", "Nur Arbeitsverträge", "Nur Steuern"], "AO legt Rahmen der Ausbildung fest."]
+  ],
+  "Wirtschaftsgrundlagen & Betrieb": [
+    ["Was passiert bei steigendem Angebot, konstanter Nachfrage?", "Preis sinkt tendenziell", ["Preis steigt", "Nachfrage sinkt automatisch", "Keine Veränderung möglich"], "Marktmechanismus von Angebot/Nachfrage."],
+    ["Welche Rechtsform haftet grundsätzlich nicht mit Privatvermögen?", "GmbH", ["Einzelunternehmen", "OHG", "GbR"], "GmbH haftet mit Gesellschaftsvermögen."],
+    ["Aufbauorganisation bedeutet …", "Strukturen, Stellen, Hierarchien (Organigramm)", ["Tagesabläufe", "Reinigungsplan", "Urlaubsplan"], "Abgrenzung zur Ablauforganisation (Prozesse)."],
+    ["Ziel der Qualitätssicherung (QS)?", "Standardisierung, gleichbleibende Qualität", ["Nur Werbung", "Nur IT-Sicherheit", "Nur Lohnbuchhaltung"], "SOPs, Doku, Audits, Schulung."],
+    ["Kostenstelle – was ist das?", "Ort der Kostenentstehung", ["Bankkonto", "Steuerbescheid", "Privatvermögen"], "Element der Kostenrechnung."],
+    ["Liquidität meint …", "Zahlungsfähigkeit", ["Gewinnhöhe", "Lagerreichweite", "Steuerklasse"], "Unternehmen muss jederzeit zahlen können."],
+    ["Welche Aussage zu Skonto ist korrekt?", "Preisnachlass bei Zahlung innerhalb Frist", ["Strafgebühr", "Einmalzahlung", "gesetzliche Steuer"], "Handelsübliche Kondition."],
+    ["Deckungsbeitrag beschreibt …", "Erlös − variable Kosten", ["Umsatz − Fixkosten", "Gewinn − Steuer", "Lagerwert − Abschreibung"], "Kennzahl zur Sortimentssteuerung."],
+    ["Inventur ist …", "körperliche Bestandsaufnahme", ["Wareneingangsbuch", "Renditerechnung", "Preislistenprüfung"], "Mind. einmal jährlich."],
+    ["Was ist Abschreibung (AfA)?", "Wertminderung über Nutzungsdauer", ["Sofortige Steuerzahlung", "Preisaufschlag", "Privatausgabe"], "Planmäßige Verteilung der Anschaffungskosten."],
+    ["Wofür steht ROI?", "Return on Investment", ["Rate of Inflation", "Remainder of Income", "Reduction of Inventory"], "Kennzahl zur Rentabilität."],
+    ["Break-even-Point ist erreicht, wenn …", "Erlöse = Gesamtkosten", ["Gewinn = 0 und Umsatz = 0", "Lager = 0", "Steuerlast = 0"], "Schwelle zur Gewinnzone."],
+    ["Welche Aussage zur Lagerhaltung ist korrekt?", "Sichert Lieferfähigkeit, bindet aber Kapital", ["Nur Vorteile", "Keine Kosten", "Nur gesetzlich"], "Trade-off zwischen Servicegrad und Kosten."],
+    ["Was ist ein SOP?", "Standard Operating Procedure (Arbeitsanweisung)", ["Softwarepaket", "Steuerformular", "Tarifvertrag"], "Teil des QS-Systems."]
+  ],
+  "Arbeitsschutz & Hygiene": [
+    ["Gefährdungsbeurteilung bedeutet …", "Risiken systematisch ermitteln/bewerten", ["Urlaubsplanung", "Kundenwerbung", "Steueranmeldung"], "Grundlage für Schutzmaßnahmen."],
+    ["PSA umfasst …", "Schutzkleidung, Handschuhe, Schutzbrille", ["Bürostuhl", "Kalender", "Tastatur"], "Personenbezogener Schutz."],
+    ["Wer meldet meldepflichtige Arbeitsunfälle?", "Arbeitgeber an die BG", ["Arbeitnehmer an die GKV", "Finanzamt", "Niemand"], "Meldepflicht des AG."],
+    ["Händehygiene ist wichtig, weil …", "Infektionen verhindert werden", ["Nur optischer Effekt", "Unwichtig", "Nur im Winter relevant"], "Zentrale Präventionsmaßnahme."],
+    ["Notfallplan regelt …", "Abläufe/Verantwortlichkeiten im Gefahrenfall", ["Urlaub", "Werbung", "Einkaufsliste"], "Für schnelle, sichere Reaktion."],
+    ["Unterweisungspflicht bedeutet …", "AG unterweist Beschäftigte regelmäßig", ["Nur auf Wunsch", "Nur schriftlich", "Nur bei Azubis"], "Pflicht nach ArbSchG/DGUV-Vorschriften."],
+    ["Hautschutzplan beinhaltet …", "Schutz-/Pflege-/Reinigungsmaßnahmen", ["Lohnabrechnung", "Steuertabelle", "Dienstwagenordnung"], "Teil des Arbeitsschutzes."],
+    ["Abfallbehälter für infektiösen Abfall …", "gekennzeichnet, dicht, sicher verschließbar", ["offen", "ohne Kennzeichnung", "Hausmüllbeutel"], "Vorgaben nach Abfallrecht/Infektionsschutz."],
+    ["Im Nadelstichfall …", "Sofortmaßnahmen + Meldung + BG-Dokumentation", ["abwarten", "nur Pflaster", "keine Meldung"], "Postexpositionsprozedur beachten."],
+    ["Gefahrstoffe erfordern …", "Kennzeichnung, Betriebsanweisung, Lagerregeln", ["nur Hausmüllentsorgung", "keine Dokumentation", "nur mündliche Hinweise"], "CLP/GHS beachten."]
+  ],
+  "Datenschutz & Kommunikation": [
+    ["Patientendaten dürfen weitergegeben werden, wenn …", "Einwilligung oder gesetzliche Grundlage vorliegt", ["immer frei", "nie", "nur an Bekannte"], "DSGVO/Schweigepflicht."],
+    ["Schweigepflicht bedeutet …", "Geheimhaltung patientenbezogener Informationen", ["Verbot interner Kommunikation", "nur Empfehlung", "nur bei Minderjährigen"], "Berufsrechtlich bindend."],
+    ["Gute Kommunikation am Empfang umfasst …", "aktives Zuhören, klare Sprache, freundlicher Ton", ["Fachjargon ohne Erklärung", "Ignorieren", "Schroffheit"], "Serviceorientierter Umgang."],
+    ["Zweckbindung nach DSGVO heißt …", "Daten nur für festgelegte Zwecke", ["für alle Zwecke", "für Werbung freigegeben", "frei handelbar"], "Verarbeitungszweck muss feststehen."],
+    ["Datensparsamkeit bedeutet …", "nur notwendige Daten erheben/verarbeiten", ["möglichst viele Daten", "Daten doppelt erfassen", "alles in CC"], "Grundsatz der DSGVO."],
+    ["Technische/organisatorische Maßnahmen (TOM) sind …", "Sicherheitsmaßnahmen (z. B. Zugriff, Verschlüsselung)", ["Marketing", "Arbeitsvertrag", "Urlaubsplan"], "Schützen Vertraulichkeit/Integrität/Verfügbarkeit."],
+    ["Auskunftsrecht heißt …", "Betroffene erhalten Auskunft zu gespeicherten Daten", ["nur Behörden", "nur intern", "nie"], "Art. 15 DSGVO."]
+  ],
+  "Umwelt & Entsorgung": [
+    ["Infektiöser Abfall ist …", "getrennt und vorschriftsgemäß zu entsorgen", ["Hausmüll", "Toilette", "frei"], "Sichere Sammlung/Kennzeichnung erforderlich."],
+    ["Gefahrstoffkennzeichnung dient …", "Vermeidung von Fehlanwendung/Unfällen", ["nur Optik", "nicht nötig", "nur Lagerkosten"], "GHS/CLP-Kennzeichnung beachten."],
+    ["Was beschreibt Recycling?", "Rückführung von Stoffen in den Kreislauf", ["Verbrennung", "Deponie ohne Verwertung", "Illegale Entsorgung"], "Schonung von Ressourcen/Umwelt."],
+    ["Ziel von Energiesparen in der Praxis?", "Kosten senken, Umwelt schonen", ["nur Marketing", "nur Pflichten", "keine Wirkung"], "Nachhaltige Betriebsführung."]
+  ]
+};
+
+/* --- Add-on: Sozialversicherung (zusätzliche Fragen) --- */
+SEEDS["Sozialversicherung"].push(
+  ["Wer ist Träger der gesetzlichen Pflegeversicherung?","Die Krankenkassen",["Berufsgenossenschaften","Rentenversicherung","Finanzamt"],"Die Pflegeversicherung ist organisatorisch an die Krankenkassen angegliedert."],
+  ["Welche Voraussetzung gilt für den Bezug von Krankengeld?","Arbeitsunfähigkeit länger als 6 Wochen nach EFZG-Zeitraum",["Ab dem ersten Krankheitstag","Nur bei Unfällen","Nur bei Privatversicherten"],"Nach 6 Wochen endet die Entgeltfortzahlung und das Krankengeld greift."],
+  ["Was bedeutet Beitragsbemessungsgrenze?","Obergrenze des versicherungspflichtigen Einkommens",["Mindestlohn","Steuerfreibetrag","Pfändungsgrenze"],"Nur bis zu dieser Grenze werden Beiträge berechnet."],
+  ["Wer ist in der Rentenversicherung pflichtversichert?","Arbeitnehmer*innen und Auszubildende",["Selbstständige immer","Nur Beamte","Nur Minijobber"],"Pflichtversicherung gilt für alle Beschäftigten mit Entgelt."],
+  ["Welche Leistung gewährt die Arbeitslosenversicherung?","Arbeitslosengeld I",["Wohngeld","Kindergeld","Pflegegeld"],"Anspruch nach § 136 ff. SGB III."]
+);
+
+/* --- Add-on: Lohn & Steuern (zusätzliche Fragen + Rechenmix) --- */
+SEEDS["Lohn & Steuern"].push(
+  ["Was beschreibt das Prinzip der Progression?","Steuer steigt überproportional mit Einkommen",["Alle zahlen denselben Prozentsatz","Nur Arbeitgeber zahlen","Progression bedeutet Rückzahlung"],"Grundsatz des Einkommensteuerrechts."],
+  ["Was gehört zu den gesetzlichen Abzügen eines Azubis?","Renten-, Kranken-, Pflege-, Arbeitslosenversicherung",["Kirchensteuer","Vermögenswirksame Leistungen","Pflichtmitgliedsbeitrag Kammer"],"Nur Sozialversicherungsabgaben sind gesetzlich vorgeschrieben."],
+  ["Was ist der Kinderfreibetrag?","Steuerfreier Betrag zur Entlastung von Eltern",["Zuschuss der GKV","AG-Pflichtbeitrag","Teil der Unfallversicherung"],"Berücksichtigt das Existenzminimum der Kinder."],
+  ["Welche Bedeutung hat das Kürzel SV-Nachweis?","Belegt abgeführte SV-Beiträge des Arbeitgebers",["Bestätigt Urlaubsanspruch","Nachweis für Finanzamt","Nur intern"],"Teil der Entgeltabrechnungs-Dokumentation."],
+  ["Wie hoch ist der Arbeitnehmeranteil an der Rentenversicherung (Stand 2025)?","9,3 %",["4,5 %","18,6 %","12 %"],"Gesamt 18,6 % → hälftig je Partei."],
+  ["Welche Aussage zur Lohnsteuerklasse VI stimmt?","Für Nebenbeschäftigungen ohne Hauptarbeitsverhältnis",["Für Ehepaare","Für Studierende","Für Rentner"],"Immer wenn keine ELStAM vorliegen."],
+  ["Welche Leistung zahlt die Agentur für Arbeit bei Mutterschutz nicht?","Mutterschaftsgeld",["Arbeitslosengeld","Kurzarbeitergeld","Vermittlungszuschuss"],"Mutterschaftsgeld kommt von der Krankenkasse."],
+  ["Was ist vermögenswirksame Leistung (VL)?","Arbeitgeberleistung zum Vermögensaufbau",["Sonderzahlung","Steuerrückzahlung","Urlaubsbonus"],"Z. B. in Sparvertrag oder Bausparen."],
+  ["Berechne den Monatsnettolohn: Brutto 3 000 €, Abzüge 31 %.","2069,00 €",["2190 €","2300 €","2450 €"],"3 000 × 0,69 = 2 070 € (gerundet)."],
+  ["Wie hoch ist die Kirchensteuer (in % der Lohnsteuer) in Hessen?","9 %",["5 %","7 %","10 %"],"Landessatz Hessen 9 %."],
+  ["Was versteht man unter Solidaritätszuschlag?","Ergänzungsabgabe zur Einkommensteuer",["Pflicht zur UV","Kammerbeitrag","Pflichtbeitrag GKV"],"Wird meist automatisch mit LSt einbehalten."]
+);
+
+/* --- Add-on: Ausbildungs- & Arbeitsrecht (zusätzliche Fragen) --- */
+SEEDS["Ausbildungs- & Arbeitsrecht"].push(
+  ["Was regelt das Berufsbildungsgesetz (BBiG)?","Rechte & Pflichten in der Berufsausbildung",["Urlaubsplanung","Steuertarife","Krankenversicherung"],"Zentrale gesetzliche Grundlage der Ausbildung."],
+  ["Wer kontrolliert Ausbildungsbetriebe regelmäßig?","Zuständige Kammern (z. B. Tierärztekammer)",["Finanzamt","Arbeitsamt","BG"],"Überwachen Eignung und Ausbildungsnachweise."],
+  ["Wie lange dauert in der Regel die tägliche Ruhezeit nach Arbeitszeitende?","Mindestens 11 Stunden",["8 Stunden","9 Stunden","10 Stunden"],"§ 5 ArbZG."],
+  ["Wann ist Mehrarbeit bei Azubis erlaubt?","Nur in Ausnahmefällen mit Ausgleich",["Immer","Nie","Nur auf Wunsch"],"Grundsatz: Ausbildung geht vor, Ausgleich notwendig."],
+  ["Wann muss der Ausbildungsvertrag spätestens schriftlich vorliegen?","Vor Beginn der Ausbildung",["Innerhalb 4 Wochen","Nach Probezeit","Nach Berufsschulstart"],"Formpflicht vor Arbeitsaufnahme."],
+  ["Welche Aussage zum Jugendarbeitsschutzgesetz ist richtig?","Schützt Beschäftigte < 18 Jahren durch Arbeitszeit- und Pausenregelungen",["Gilt für alle","Nur für über 18","Nur für Ausbilder"],"JArbSchG gilt für Jugendliche."],
+  ["Wie lange dürfen Jugendliche täglich höchstens beschäftigt werden?","8 Stunden",["6","9","10"],"§ 8 JArbSchG."],
+  ["Wann endet das Berufsausbildungsverhältnis regulär?","Mit Bestehen der Abschlussprüfung",["Nach 3 Jahren","Nach Zeugnis","Mit Probezeitende"],"BBiG § 21."],
+  ["Was ist bei einer Kündigung während der Probezeit nötig?","Keine Frist, aber Schriftform",["Mündlich","Immer 2 Wochen Frist","Kammergenehmigung"],"BBiG § 22."],
+  ["Wann besteht Anspruch auf ein Arbeitszeugnis?","Bei Beendigung des Arbeitsverhältnisses",["Nur auf Wunsch","Nie","Nur bei unbefristeten Verträgen"],"§ 109 GewO."]
+);
+
+/* --- Add-on: Wirtschaftsgrundlagen & Betrieb (zusätzliche Fragen) --- */
+SEEDS["Wirtschaftsgrundlagen & Betrieb"].push(
+  ["Was beschreibt das magische Viereck der Wirtschaftspolitik?","Stabiles Preisniveau, hoher Beschäftigungsstand, außenwirtschaftliches Gleichgewicht, stetiges Wachstum",["Hohe Preise, Arbeitslosigkeit, Außenhandel, Staatsschulden","Nur Wirtschaftswachstum","Nur stabile Preise"],"§ 1 StabG – vier gleichrangige Ziele."],
+  ["Was ist der Unterschied zwischen Kosten und Ausgaben?","Kosten = betrieblicher Werteverzehr, Ausgaben = Geldabfluss",["Beides identisch","Kosten sind nur Steuern","Ausgaben nur kalkulatorisch"],"Kostenbegriff ist betriebswirtschaftlich enger."],
+  ["Welche Funktion hat die Buchführung?","Dokumentation, Kontrolle, Information, Rechenschaft",["Nur Steuerberechnung","Nur für Werbung","Nur interne Planung"],"Grundlage des Jahresabschlusses."],
+  ["Was bedeutet Liquidität 2. Grades?","(Flüssige Mittel + Forderungen) / kurzfristige Verbindlichkeiten",["Gesamtkapital / Umsatz","Gewinn / Umsatz","Nur Bankguthaben"],"Kennzahl zur kurzfristigen Zahlungsfähigkeit."],
+  ["Wie wirken sich Abschreibungen auf den Gewinn aus?","Sie mindern den Gewinn",["Sie erhöhen den Gewinn","Keine Auswirkung","Nur bilanziell relevant"],"Aufwand, keine Auszahlung, aber gewinnmindernd."],
+  ["Was beschreibt der Begriff Cashflow?","Einzahlungsüberschuss in einer Periode",["Lagerbestand","Fremdkapital","Anlagevermögen"],"Kennzahl für Innenfinanzierungskraft."],
+  ["Was bedeutet Skonto 3 % bei 10 Tagen?","3 % Preisnachlass bei Zahlung innerhalb 10 Tage",["3 % Aufschlag","Zahlung nach 30 Tagen","Ratenzahlung"],"Handelsübliche Zahlungsbedingung."],
+  ["Was bedeutet Kalkulation im Handel?","Ermittlung des Verkaufspreises auf Basis von Kosten + Gewinn",["Nur Lagerbewertung","Nur Preisnachlass","Nur Personalplanung"],"Grundlage der Preisgestaltung."],
+  ["Wie nennt man den Anteil des Eigenkapitals am Gesamtkapital?","Eigenkapitalquote",["Liquiditätsgrad","Cashflow","Kapitalbindung"],"Kennzahl für Stabilität der Finanzierung."],
+  ["Was versteht man unter innerbetrieblichem Vorschlagswesen?","System zur Einreichung von Verbesserungen durch Mitarbeitende",["Tarifvertrag","Beschwerdeverfahren","Urlaubsplan"],"Fördert Motivation und Innovation."]
+);
+
+/* --- Add-on: Arbeitsschutz & Hygiene (zusätzliche Fragen) --- */
+SEEDS["Arbeitsschutz & Hygiene"].push(
+  ["Wie häufig sind Unterweisungen zum Arbeitsschutz durchzuführen?","Mindestens 1× jährlich und bei Veränderungen",["Nur alle 5 Jahre","Nur bei Neustart","Nie Pflicht"],"§ 12 ArbSchG."],
+  ["Wer trägt die Verantwortung für die Einhaltung von Sicherheitsvorschriften?","Der Arbeitgeber",["Die Mitarbeiter","Die BG","Das Gesundheitsamt"],"Grundverantwortung AG, Mitwirkung AN."],
+  ["Was regelt die TRBA 250?","Schutzmaßnahmen bei Tätigkeiten mit biologischen Arbeitsstoffen",["Brandschutz","Steuerrecht","Hygienekleidung"],"Technische Regel Biologische Arbeitsstoffe."],
+  ["Welche Aussage zu Gefahrstoffetiketten ist korrekt?","Piktogramme und Signalwörter müssen gut sichtbar sein",["Farben frei wählbar","Nur Text","Nie Pflicht"],"CLP-Verordnung verlangt Kennzeichnung."],
+  ["Was beschreibt der Begriff Ergonomie?","Anpassung der Arbeitsbedingungen an den Menschen",["Anpassung Mensch an Maschine","Nur Design","Nur Arbeitszeit"],"Ziel: gesundes Arbeiten durch Gestaltung des Arbeitsplatzes."],
+  ["Wie oft müssen Erste-Hilfe-Kästen kontrolliert werden?","Regelmäßig (z. B. halbjährlich) und nach Verbrauch",["Nur bei Unfall","Nie","Täglich"],"Verantwortung Betrieb / Sicherheitsbeauftragter."],
+  ["Was ist nach einem Stichverletzungsunfall sofort zu tun?","Wunde ausdrücken / desinfizieren / melden / BG-Dokumentation",["Abwarten","Verbinden und vergessen","Nur Arztbesuch nach 1 Woche"],"Postexpositionsprophylaxe unverzüglich einleiten."],
+  ["Welche Dokumente regeln Hygieneprozesse in Praxen?","Hygiene- und Desinfektionspläne sowie SOPs",["Steuerakte","Urlaubsplan","Tarifregister"],"Pflicht nach IfSG und RKI-Empfehlungen."]
+);
+
+/* --- Add-on: Datenschutz & Kommunikation (zusätzliche Fragen) --- */
+SEEDS["Datenschutz & Kommunikation"].push(
+  ["Wann dürfen Praxisdaten an Dritte weitergegeben werden?","Nur mit Einwilligung oder gesetzlicher Grundlage",["Immer","Nie","Bei Freunden"],"§ 203 StGB / Art. 6 DSGVO."],
+  ["Was bedeutet Vertraulichkeit nach DSGVO?","Daten sind vor unbefugtem Zugriff zu schützen",["Daten sollen geteilt werden","Offenheit gegenüber allen","Nur Papierakten"],"Technisch-organisatorische Maßnahmen erforderlich."],
+  ["Was ist ein Auftragsverarbeitungsvertrag (AVV)?","Vertrag zwischen Praxis und externem Dienstleister zur Datenverarbeitung",["Internes Memo","Mietvertrag","Urlaubsplan"],"Art. 28 DSGVO regelt Pflichten des Auftragsverarbeiters."],
+  ["Was beschreibt das Prinzip der Datenminimierung?","Nur so viele Daten wie nötig erheben",["Alle Daten sammeln","Mehr ist besser","Doppelte Erfassung"],"Grundsatz der Datenschutz-Grundverordnung."],
+  ["Was gilt bei Kommunikationsfehlern im Team?","Fehler sachlich ansprechen und lösungsorientiert klären",["Ignorieren","Anschreien","Vorwurf ohne Lösung"],"Konstruktives Feedback fördert Zusammenarbeit."],
+  ["Was ist aktive Zuhören?","Nachfragen, Paraphrasieren und Signalisieren von Aufmerksamkeit",["Monolog","Abwarten","Überreden"],"Wichtige Kommunikationstechnik in der Praxis."]
+);
+
+/* --- Add-on: Umwelt & Entsorgung (zusätzliche Fragen) --- */
+SEEDS["Umwelt & Entsorgung"].push(
+  ["Welche Abfallart darf nicht über den Hausmüll entsorgt werden?","Altmedikamente mit Gefahrstoffsymbol",["Papier","Verpackungen","Karton"],"Gefahrstoffhaltige Abfälle getrennt entsorgen."],
+  ["Wie werden scharfe / spitze Instrumente entsorgt?","In bruch- und stichfesten Behältern",["In Müllbeutel","Mit Hausmüll","Im Abfluss"],"Gefährdung vermeiden → Sicherheitsbehälter."],
+  ["Was bedeutet Abfallhierarchie nach KrWG?","Vermeidung → Wiederverwendung → Recycling → Verwertung → Beseitigung",["Sammeln → Verbrennen","Nur Recycling","Keine Reihenfolge"],"Gesetzliche Prioritätenfolge § 6 KrWG."],
+  ["Welche Maßnahme reduziert Energieverbrauch in der Praxis?","LED-Beleuchtung und Abschalten von Geräten nach Betriebsschluss",["Geräte dauerhaft an","Fenster offen lassen","Mehr Drucke machen"],"Teil des energetischen Umweltschutzes."]
+);
+
+/* --- Add-on: Zusätzliche Rechenaufgaben --- */
+NUMERIC_TASKS.push(
+  ["Lohn & Steuern","Berechne den AG-Anteil zur Sozialversicherung bei Brutto 3 200 €, AG-Anteil 20 %",3200*0.20,1.0,"€","3 200 × 0,20 = 640 € AG-Anteil."],
+  ["Lohn & Steuern","Krankenkassen-Zusatzbeitrag 1,6 % auf Brutto 2 800 € → Betrag?",2800*0.016,2.0,"€","2 800 × 0,016 = 44,80 €."],
+  ["Wirtschaftsgrundlagen & Betrieb","Rabatt 5 % auf 200 €, Skonto 2 % → Zahlbetrag?",200*0.95*0.98,1.0,"€","200 × 0,95 × 0,98 = 186,20 €."],
+  ["Wirtschaftsgrundlagen & Betrieb","Kostenrechnung: Erlös 5 000 €, variable Kosten 3 000 €, DB?",5000-3000,0.1,"€","5 000 − 3 000 = 2 000 € Deckungsbeitrag."],
+  ["Arbeitsschutz & Hygiene","Schutzhandschuhe Kosten 3,20 €/Paar, 50 Paar / Monat → Monatskosten?",3.20*50,0.1,"€","3,20 × 50 = 160 €."]
+);
+
+/* --- Praxis-Add-on: Umwelt & Entsorgung --- */
+SEEDS["Umwelt & Entsorgung"].push(
+  ["Wie werden gebrauchte Kanülen mit Blutresten entsorgt?","In stichfesten, verschlossenen Einwegbehältern für infektiösen Abfall",["Im Restmüll","In Kartons","Im Glascontainer"],"Gefährdung durch Stichverletzung vermeiden – Sammelbehälter verwenden."],
+  ["Welche Kennzeichnung trägt infektiöser Abfall nach LAGA-Klassifikation?","Abfallschlüssel 18 01 03*",["17 02 01","18 02 02","15 01 01"],"Abfälle aus Behandlung von Menschen und Tieren, die infektiös sind."],
+  ["Wie werden Röntgenchemikalien umweltgerecht entsorgt?","Über zugelassene Spezialentsorger für Gefahrstoffe",["Über Toilette","Über Spülbecken","Mit Hausmüll"],"Fixierer und Entwickler enthalten Schwermetalle, Sonderabfall."],
+  ["Was beschreibt das Prinzip der Kreislaufwirtschaft?","Ressourcen schonen durch Wiederverwendung und Recycling",["Abfalllagerung","Verbrennung","Export"],"Ziel des KrWG: Abfall vermeiden, Stoffkreisläufe schließen."],
+  ["Was zählt zu Maßnahmen nachhaltiger Praxisführung?","Energieeffiziente Geräte, digitale Dokumentation, Recyclingpapier",["Mehr Drucke","Stand-by-Modus dauerhaft","Einmalartikel ohne Not"],"Nachhaltigkeit senkt Kosten und schützt Umwelt."]
+);
+
+/* --- Praxis-Add-on: Datenschutz & Kommunikation --- */
+SEEDS["Datenschutz & Kommunikation"].push(
+  ["Welche Maßnahme schützt Patientendaten am Empfang am besten?","Bildschirm so aufstellen, dass Patienten keine Daten einsehen können",["Alle Daten offen zeigen","Akten im Wartezimmer ablegen","Passwort auf Zettel notieren"],"Datenschutz durch physische Barrieren und Sichtschutz."],
+  ["Wann dürfen Mitarbeiter private Smartphones in der Praxis nutzen?","Nur wenn dienstliche Daten sicher getrennt und genehmigt sind",["Immer","Nie","Nur mit Kamerafunktion"],"BYOD erfordert klare Regeln und Datenschutzkonzept."],
+  ["Wie reagierst du bei unklaren Telefonanfragen zu Patientendaten?","Keine Auskunft ohne Identitätsprüfung oder schriftliche Einwilligung",["Immer Auskunft geben","Nur Vornamen nennen","Daten per SMS schicken"],"Datenschutz vor Service – Schweigepflicht geht vor."]
+);
+
+/* --- Praxis-Add-on: Arbeitsschutz & Hygiene --- */
+SEEDS["Arbeitsschutz & Hygiene"].push(
+  ["Welche Pflicht gilt für Beschäftigte bei Schutzkleidung?","Schutzkleidung ordnungsgemäß tragen und pflegen",["Nur bereithalten","Nur bei Kontrolle tragen","Nie waschen"],"Pflicht zur Mitwirkung am Arbeitsschutz."],
+  ["Wie oft ist eine Hygienebegehung in der Tierarztpraxis empfohlen?","Mindestens einmal jährlich",["Nur bei Beschwerden","Nie","Monatlich zwingend"],"Regelmäßige Eigen- oder Fremdbegehung überprüft Hygienestandards."],
+  ["Welche Maßnahme senkt Infektionsrisiken im Behandlungsraum?","Tragen von Handschuhen und Flächendesinfektion nach jedem Tier",["Nur Lüften","Nur Maskenpflicht","Nur Händewaschen am Tagesende"],"Standardhygiene nach RKI-Empfehlungen."]
+);
+
+/* --- Praxis-Add-on: Lohn & Steuern (Rechenaufgaben & Theorie) --- */
+SEEDS["Lohn & Steuern"].push(
+  ["Ein/e TFA erhält 2 700 € brutto. Wie hoch ist die Arbeitnehmer-Rentenversicherung bei 9,3 %?", "251,10 €", ["240 €","270 €","300 €"], "2 700 × 0,093 = 251,10 €."],
+  ["Bruttolohn 2 400 €, Abzüge 32 % → Nettolohn?", "1 632 €", ["1 680 €","1 700 €","1 500 €"], "2 400 × 0,68 = 1 632 €."],
+  ["Wie werden vermögenswirksame Leistungen (VL) steuerlich behandelt?","Als Bestandteil des Bruttolohns",["Immer steuerfrei","Nur SV-frei","Nicht meldepflichtig"],"VL zählen zum Arbeitsentgelt."],
+  ["Wie wird das Krankengeld finanziert?","Aus Beiträgen der gesetzlichen Krankenversicherung",["Vom Arbeitgeber allein","Vom Staat","Von den Kammern"],"Finanzierungsgemeinschaft der Versicherten."],
+  ["Eine TFA arbeitet an 3 Samstagen je 5 h. Wie werden diese Stunden vergütet?","Je nach Vertrag oder Tarifvertrag – Zuschläge möglich",["Immer ohne Lohn","Nur Freizeitausgleich","Immer 200 %"],"Praxisabhängig, ggf. Tarifregelung beachten."]
+);
+
+/* --- Praxis-Add-on: Ausbildungs- & Arbeitsrecht --- */
+SEEDS["Ausbildungs- & Arbeitsrecht"].push(
+  ["Eine Auszubildende erscheint wiederholt zu spät. Wie sollte der Betrieb reagieren?","Erst Gespräch, dann ggf. schriftliche Abmahnung",["Sofort Kündigung","Ignorieren","Lohnkürzung"],"Grundsatz der Verhältnismäßigkeit – pädagogisch handeln."],
+  ["Ein Azubi ist minderjährig. Wer unterschreibt den Ausbildungsvertrag mit?","Erziehungsberechtigte",["Berufsschule","Kammer","Lehrkraft"],"Minderjährige brauchen Zustimmung der Eltern (§10 BBiG)."],
+  ["Wann muss der Betrieb den Ausbildungsnachweis prüfen?","Regelmäßig, spätestens vor der Zulassung zur Prüfung",["Nie","Nur bei Beschwerden","Nur bei Probezeitende"],"Pflicht nach § 14 BBiG."],
+  ["Was passiert, wenn die Abschlussprüfung nicht bestanden wird?","Verlängerung des Ausbildungsvertrags auf Wunsch bis zur Wiederholungsprüfung",["Sofortige Kündigung","Neuer Vertrag nötig","Kein Anspruch"],"§ 21 Abs. 3 BBiG erlaubt Verlängerung."],
+  ["Was ist bei Überstunden von Azubis zu beachten?","Nur ausbildungsbezogen, freiwillig und mit Ausgleich",["Immer Pflicht","Nur bei Krankheit anderer","Nie erlaubt"],"BBiG + JArbSchG: Ausbildung geht vor Produktivität."],
+  ["Wie lange beträgt die tägliche Pause bei 8-Stunden-Tag laut ArbZG?","Mindestens 30 Minuten",["15 Min","45 Min","60 Min"],"§ 4 ArbZG: 30 Min bei 6–9 h Arbeitszeit."],
+  ["Wann besteht Anspruch auf Ausbildungsvergütung?","Ab Beginn der Ausbildung laut Vertrag",["Nach Probezeit","Nach Berufsschule","Nach 6 Monaten"],"§ 17 BBiG."],
+  ["Wer meldet den Azubi zur Zwischenprüfung an?","Der Ausbildungsbetrieb",["Die Berufsschule","Der Azubi selbst","Die Kammer"],"Pflicht des Ausbildenden laut Prüfungsordnung."],
+  ["Darf ein Azubi alleine ohne Aufsicht Narkosemittel aufziehen?","Nein, nur unter Anleitung und Aufsicht",["Ja, immer","Nur bei Routine","Nur mit Unterschrift"],"Pflicht zur Anleitung nach § 14 BBiG + TFG-Sorgfaltspflicht."],
+  ["Was gilt bei Krankheit des Azubis?","Unverzügliche Krankmeldung und Vorlage der AU-Bescheinigung",["Erst nach 3 Tagen","Nie nötig","Nur bei Schulfehltagen"],"Pflicht zur Mitteilung laut § 13 BBiG."]
+);
+
+/* --- Praxis-Add-on: Wirtschaftsgrundlagen & Betrieb --- */
+SEEDS["Wirtschaftsgrundlagen & Betrieb"].push(
+  ["Was ist der Unterschied zwischen Einnahmen und Ertrag?","Einnahme = Geldzufluss, Ertrag = wertmäßige Leistung einer Periode",["Beides gleich","Ertrag = Kassensaldo","Einnahme = Umsatzsteuer"],"Betriebswirtschaftlicher Grundbegriff."],
+  ["Welche Kostenart gehört zu den Fixkosten?","Praxis-Miete",["Tierfutter","Materialverbrauch","Strom nach Nutzung"],"Fixkosten sind mengenunabhängig."],
+  ["Wie kann eine Tierarztpraxis Liquidität verbessern?","Durch frühzeitige Rechnungsstellung und konsequentes Mahnwesen",["Späte Zahlung","Mehr Lagerbestand","Mehr Urlaubszeiten"],"Schneller Geldeingang sichert Zahlungsfähigkeit."],
+  ["Warum ist eine Inventur wichtig?","Zur Überprüfung des tatsächlichen Warenbestands",["Nur Steuerprüfung","Nur Statistik","Nur Preisvergleich"],"Pflicht mindestens einmal jährlich (§ 240 HGB)."],
+  ["Welche Aufgabe hat die Kostenstellenrechnung?","Ermittlung, wo Kosten im Betrieb anfallen",["Nur Steuerermittlung","Nur Einkaufspreise","Nur Privatkosten"],"Hilft bei Wirtschaftlichkeitskontrolle."],
+  ["Was versteht man unter innerbetrieblicher Leistungsverrechnung?","Verrechnung von Leistungen zwischen Abteilungen",["Verkauf an Kunden","Zahlung an Finanzamt","Lohnzahlung"],"z. B. Labor → Behandlungsraum."],
+  ["Wie berechnet man den Reingewinn?","Umsatz − Kosten",["Kosten − Umsatz","Gewinn − Steuern","Umsatz + Kosten"],"Grundformel des Erfolgsvergleichs."],
+  ["Wie werden Medikamente im Lager bewertet?","Nach Einkaufspreis (Anschaffungskosten)",["Nach Verkaufspreis","Nach Marktpreis","Gar nicht"],"Bewertung zu Anschaffungskosten nach HGB."],
+  ["Wie nennt man den Punkt, an dem Einnahmen = Kosten sind?","Break-Even-Point",["Liquiditätsgrad","ROI","Cashflow"],"Gewinnschwelle erreicht."],
+  ["Welche Maßnahme erhöht den Deckungsbeitrag einer Praxis?","Senkung variabler Kosten oder Preiserhöhung",["Mehr Fixkosten","Mehr Rabatt","Mehr Personal"],"DB = Erlös − variable Kosten."]
+);
+
+
+/* ========= Hilfsfunktionen ========= */
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function makeMC(topic, q, correct, wrongs, expl){
+  const opts = shuffle(wrongs.concat([correct]));
+  return {type:"mc", topic, question:q, options:opts, answer:opts.indexOf(correct), explanation:expl};
+}
+
+function makeNUM(topic, q, v, tol, unit, ex){
+  return {type:"num", topic, question:q, correct_value:+(Math.round(v*100)/100), tolerance_pct:tol, unit, explanation:ex};
+}
+
+/* Neuer Generator: zieht ALLE Seeds, nutzt DISTRIB nur für Prüfungsgewichtung */
+function buildQuestionBank() {
+  const bank = [];
+
+  for (const topic of TOPICS) {
+    const seeds = SEEDS[topic] || [];
+    if (!seeds.length) continue;
+
+    // Alle Fragen des Themas übernehmen (keine Begrenzung durch DISTRIB)
+    for (const s of seeds) {
+      if (!Array.isArray(s) || s.length < 4) continue;
+      const [q, c, wr, ex] = s;
+      bank.push(makeMC(topic, q, c, wr, ex));
+    }
+  }
+
+  // Alle Rechenaufgaben hinzufügen
+  for (const n of NUMERIC_TASKS) {
+    bank.push(makeNUM(n[0], n[1], n[2], n[3], n[4], n[5]));
+  }
+
+  // IDs vergeben
+  bank.forEach((q, i) => q.id = i + 1);
+
+  return bank;
+}
+
+
+
+/* ========= App-State / Elemente ========= */
+let QUESTIONS = buildQuestionBank(); // ~220 pro Start
+let mode='idle', pool=[], idx=0, score=0, topic='Alle Themen', record=[];
+let timerInt=null, cache={};
+
+const home=document.getElementById('home'), quiz=document.getElementById('quizCard'), res=document.getElementById('resultCard');
+const qT=document.getElementById('qTopic'), qQ=document.getElementById('qText'), qO=document.getElementById('qOptions'), qN=document.getElementById('qNum'), qE=document.getElementById('qExplain');
+const progress=document.getElementById('progress'), timer=document.getElementById('timer');
+const topicSel=document.getElementById('topicSel');
+const statLast=document.getElementById('statLast'), statAvg=document.getElementById('statAvg'), statErr=document.getElementById('statErr');
+const btnLearn=document.getElementById('btnLearn'), btnExam=document.getElementById('btnExam'), btnErr=document.getElementById('btnErrTrain');
+const btnBack=document.getElementById('btnBack'), btnNext=document.getElementById('btnNext'), btnExplain=document.getElementById('btnExplain');
+const btnHome=document.getElementById('btnHome'), btnHomeTop=document.getElementById('btnHomeTop'), btnPrint=document.getElementById('btnPrint');
+const btnErrNow=document.getElementById('btnErrNow'), btnDown=document.getElementById('btnDownload');
+const resHead=document.getElementById('resultHead'), resText=document.getElementById('resultText');
+
+/* ========= Local Storage & Utilities ========= */
+function save(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function load(k,d){ try{ return JSON.parse(localStorage.getItem(k)||JSON.stringify(d)); }catch(e){ return d; } }
+function filterTopic(a,t){ return t==='Alle Themen'? a.slice() : a.filter(x=>x.topic===t); }
+function grade(p){ return p>=92?1 : p>=81?2 : p>=67?3 : p>=50?4 : p>=30?5 : 6; }
+function feedback(g){ return g===1?'Mega stark, Entchen! 💕': g===2?'Sehr gut – du bist auf Kurs!': g===3?'Befriedigend – solide Leistung!': g===4?'Ausreichend – bestanden! Weiter üben fürs sichere Gefühl.': g===5?'Knapp verfehlt – du packst das beim nächsten Mal!':'Übung macht die Meister-Entchen – nicht aufgeben! 🦆'; }
+function format2(x){ return (Math.round(x*100)/100).toFixed(2); }
+
+/* ========= Stats ========= */
+function updStats(){
+  const hist = load('hist', []);
+  const errs = load('wrong', []);
+  if(!hist.length){
+    statLast.textContent = "Noch keine Prüfung gespeichert";
+    statAvg.textContent = "";
+    statErr.textContent = errs.length? `Fehler offen: ${errs.length} 🔁` : "";
+    btnErr.disabled = !errs.length;
+    return;
+  }
+  const L = hist[hist.length-1];
+  statLast.textContent = `Letzte Prüfung: ${L.date} – Note ${L.grade} (${L.pct}%) • Thema: ${L.topic||'Alle Themen'}`;
+  const avg = Math.round(hist.reduce((a,b)=>a+b.pct,0)/hist.length);
+  statAvg.textContent = `Ø Leistung: ${avg}% (Note ${grade(avg)}) aus ${hist.length} Prüfungen`;
+  statErr.textContent = errs.length? `Fehler offen: ${errs.length} 🔁` : `Keine offenen Fehler – stark!`;
+  btnErr.disabled = !errs.length;
+}
+
+/* ========= Steuerung ========= */
+function startLearn(){
+  topic = topicSel.value;
+
+  // Filtere Fragen nach Thema
+  const topicPool = filterTopic(QUESTIONS, topic);
+  if(!topicPool.length) return alert("Keine Fragen im gewählten Thema.");
+
+  if(topic === 'Alle Themen'){
+    // 20 zufällige, gewichtet nach DISTRIB
+    const weighted = [];
+    for(const t of TOPICS){
+      const weight = Math.ceil((DISTRIB[t] / Object.values(DISTRIB).reduce((a,b)=>a+b)) * 20);
+      const fromTopic = shuffle(filterTopic(QUESTIONS, t)).slice(0, weight);
+      weighted.push(...fromTopic);
+    }
+    pool = shuffle(weighted).slice(0, 20);
+  } else {
+    // Einzelthema → ALLE Fragen anzeigen (keine Begrenzung)
+    pool = shuffle(topicPool);
+  }
+
+  mode = 'learn';
+  idx = 0;
+  score = 0;
+  record = [];
+  showQuiz();
+}
+
+
+
+function startExam(){
+  topic = topicSel.value;
+  const topicPool = filterTopic(QUESTIONS, topic);
+  if(!topicPool.length) return alert("Keine Fragen im gewählten Thema.");
+  pool = shuffle(shuffle(filterTopic(QUESTIONS, topic))).slice(0, Math.min(30, topicPool.length));
+  mode='exam'; idx=0; score=0; record=[];
+  timer.classList.remove('hidden');
+  let min = 60;
+  timer.textContent = `Zeit: ${String(min).padStart(2,'0')}:00`;
+  clearInterval(timerInt);
+  timerInt = setInterval(()=>{
+    if(--min < 0){ clearInterval(timerInt); finish(); return; }
+    timer.textContent = `Zeit: ${String(min).padStart(2,'0')}:00`;
+  }, 60000);
+  showQuiz();
+}
+
+function startErr(){
+  const wrongIds = load('wrong', []);
+  const set = new Set(wrongIds);
+  const wrongQs = QUESTIONS.filter(q=>set.has(q.id));
+  if(!wrongQs.length){ alert("Keine Fehler offen."); return; }
+  mode='learn'; pool=wrongQs; idx=0; score=0; record=[]; showQuiz();
+}
+
+function showQuiz(){ home.classList.add('hidden'); res.classList.add('hidden'); quiz.classList.remove('hidden'); render(); }
+function backHome(){ clearInterval(timerInt); quiz.classList.add('hidden'); res.classList.add('hidden'); home.classList.remove('hidden'); timer.classList.add('hidden'); updStats(); }
+
+/* ========= Rendering ========= */
+function render(){
+  const q = pool[idx];
+  qT.textContent = q.topic;
+  qQ.textContent = q.question;
+  qE.classList.add('hidden');
+  qO.innerHTML = '';
+  qN.innerHTML = '';
+  qN.classList.add('hidden');
+  btnNext.disabled = true;
+  btnExplain.disabled = true;
+  progress.textContent = `Frage ${idx+1} / ${pool.length}`;
+
+  if(q.type === 'mc'){
+    q.options.forEach((o,i)=>{
+      const b=document.createElement('button'); b.className='opt'; b.textContent=o;
+      b.onclick=()=>{
+        [...qO.children].forEach(x=>x.disabled=true);
+        if(i===q.answer){ b.classList.add('correct'); score++; }
+        else { b.classList.add('wrong'); qO.children[q.answer].classList.add('correct'); }
+        record.push({id:q.id, correct:i===q.answer});
+        btnNext.disabled=false; btnExplain.disabled=false;
+      };
+      qO.appendChild(b);
+    });
+  }else{
+    qN.classList.remove('hidden');
+    const wrap=document.createElement('div'); wrap.className='inputRow';
+    const inp=document.createElement('input'); inp.type='number'; inp.placeholder='Deine Zahl';
+    const unit=document.createElement('span'); unit.textContent=q.unit||'';
+    const chk=document.createElement('button'); chk.className='btn'; chk.textContent='Antwort prüfen';
+    wrap.appendChild(inp); wrap.appendChild(unit); wrap.appendChild(chk); qN.appendChild(wrap);
+    chk.onclick=()=>{
+      const v=parseFloat(inp.value);
+      if(isNaN(v)){ alert('Bitte eine Zahl eingeben.'); return; }
+      const tol=Math.abs(q.correct_value)*(q.tolerance_pct/100);
+      const ok=(v>=q.correct_value-tol)&&(v<=q.correct_value+tol);
+      const p=document.createElement('p');
+      p.innerHTML = (ok?'✔️ Richtig':'❌ Falsch') + ` — Richtwert: <strong>${format2(q.correct_value)}${q.unit||''}</strong> (Toleranz ±${q.tolerance_pct}%)`;
+      qO.innerHTML=''; qO.appendChild(p);
+      if(ok) score++;
+      record.push({id:q.id, correct:ok});
+      btnNext.disabled=false; btnExplain.disabled=false;
+    };
+  }
+  qE.textContent = q.explanation || '';
+}
+
+function nextQ(){ if(++idx < pool.length) render(); else finish(); }
+function prevQ(){ if(idx>0){ idx--; render(); } }
+function showExplain(){ qE.classList.remove('hidden'); }
+
+/* ========= Abschluss / Ergebnis ========= */
+function finish(){
+  clearInterval(timerInt);
+  quiz.classList.add('hidden'); res.classList.remove('hidden');
+  const pct = Math.round(score/pool.length*100);
+  const g = grade(pct);
+  resHead.textContent = 'Ergebnis';
+  resText.textContent = `Du hast ${score} von ${pool.length} richtig (${pct} %) – Note ${g}. ${feedback(g)}`;
+
+  if(mode==='exam'){
+    const hist = load('hist', []);
+    hist.push({date: new Date().toLocaleDateString(), pct, grade: g, topic});
+    save('hist', hist);
+    const wrong = record.filter(r=>!r.correct).map(r=>r.id);
+    save('wrong', wrong);
+    btnErrNow.classList.remove('hidden'); btnErrNow.onclick = startErr;
+    btnDown.classList.remove('hidden');
+  } else {
+    btnErrNow.classList.add('hidden');
+    btnDown.classList.add('hidden');
+  }
+  timer.classList.add('hidden');
+  updStats();
+}
+
+/* ========= Export ========= */
+function downloadResults(){
+  const data = { date: new Date().toISOString(), topic, score, total: pool.length, records: record };
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='entchens_pruefungsergebnis.json'; a.click(); URL.revokeObjectURL(url);
+}
+
+/* ========= Init ========= */
+function init(){
+  const all=['Alle Themen', ...TOPICS];
+  all.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; topicSel.appendChild(o); });
+  btnLearn.onclick = startLearn;
+  btnExam.onclick = startExam;
+  btnErr.onclick = startErr;
+  btnNext.onclick = nextQ;
+  btnBack.onclick = prevQ;
+  btnExplain.onclick = showExplain;
+  btnHome.onclick = backHome;
+  btnHomeTop.onclick = backHome;
+  btnPrint.onclick = ()=>window.print();
+  btnDown.onclick = downloadResults;
+  updStats();
+}
+init();
+
+</script>
+</body>
+</html>
